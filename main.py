@@ -5,13 +5,21 @@ from PyQt6.QtWidgets import QApplication, QLabel, QWidget, QGridLayout, \
 from PyQt6.QtGui import QAction, QIcon
 import sys
 import sqlite3
+import mysql.connector
 
 class DatabaseConnection:
-    def __init__(self, databaseFile="database.db"):
-        self.databaseFile = databaseFile
+    def __init__(self, host="localhost", user="root", password="PythonCourse", database="school"):
+        self.host = host
+        self.user = user
+        self.password = password
+        self.database = database
         
     def connect(self):
-        connection = sqlite3.connect(self.databaseFile)
+        connection = mysql.connector.connect(
+            host=self.host,
+            user=self.user,
+            password=self.password,
+            database=self.database)
         return connection
 
 class MainWindow(QMainWindow):
@@ -78,7 +86,8 @@ class MainWindow(QMainWindow):
     
     def LoadTable(self):
         connection = DatabaseConnection().connect()
-        result = connection.execute("SELECT * FROM students")
+        connection.execute("SELECT * FROM students")
+        result = connection.fetchall()
         self.table.setRowCount(0)
         for rowNumber, rowData in enumerate(result):
             self.table.insertRow(rowNumber)
@@ -135,7 +144,7 @@ class EditDialog(QDialog):
     def updateStudent(self):
         connection = DatabaseConnection().connect()
         cursor = connection.cursor()
-        cursor.execute("UPDATE students SET name=?, course=?, mobile=? WHERE id=?",
+        cursor.execute("UPDATE students SET name=%s, course=%s, mobile=%s WHERE id=%s",
                        (self.studentName.text(),
                         self.courseName.itemText(self.courseName.currentIndex()),
                         self.mobileNumber.text(),
@@ -155,7 +164,7 @@ class DeleteDialog(QDialog):
         self.setWindowTitle("Delete Student data")
         
         layout = QGridLayout()
-        confirmationLabel = QLabel("Are you sure you want to delete this student?")
+        confirmationLabel = QLabel("Are you sure you want to delete this student%s")
         yesButton = QPushButton("Yes")
         noButton = QPushButton("No")
         
@@ -174,7 +183,8 @@ class DeleteDialog(QDialog):
         
         connection = DatabaseConnection().connect()
         cursor = connection.cursor()
-        cursor.execute("DELETE FROM students WHERE id=?", (studentId,))
+        cursor.execute("DELETE FROM students WHERE id=%s", (studentId,))
+
         connection.commit()
         cursor.close()
         connection.close()
@@ -219,7 +229,7 @@ class insertDialog(QDialog):
         mobile = self.mobileNumber.text()
         connection = DatabaseConnection().connect()
         cursor = connection.cursor()
-        cursor.execute("INSERT INTO students (name, course, mobile) VALUES (?, ?, ?)",
+        cursor.execute("INSERT INTO students (name, course, mobile) VALUES (%s, %s, %s)",
                        (name, course, mobile))
         connection.commit()
         cursor.close()
@@ -262,7 +272,8 @@ class searchDialog(QDialog):
         name = self.studentName.text()
         connection = DatabaseConnection().connect()
         cursor = connection.cursor()
-        result = cursor.execute("SELECT * FROM students WHERE name LIKE ?", (name,))
+        cursor.execute("SELECT * FROM students WHERE name LIKE %s", (name,))
+        result = cursor.fetchall()
         rows = list(result)
         print(rows)
         items = mainWindow.table.findItems(name, Qt.MatchFlag.MatchContains)
